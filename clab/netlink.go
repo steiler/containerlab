@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 
 	"github.com/google/uuid"
@@ -88,13 +89,13 @@ func (c *cLab) newLinkAttributes() LinkAttributes {
 
 func (c *cLab) configVeth(dummyInterface string, la LinkAttributes, ns string) error {
 
-	log.Debugf("Disabling TX checksum offloading for the %s interface...", dummyInterface)
-	err := EthtoolTXOff(dummyInterface)
+	netNS, err := netns.GetFromName(ns)
 	if err != nil {
 		return err
 	}
 
-	netNS, err := netns.GetFromName(ns)
+	log.Debugf("Disabling TX checksum offloading for the %s interface...", dummyInterface)
+	err = EthtoolTXOff(dummyInterface)
 	if err != nil {
 		return err
 	}
@@ -114,13 +115,14 @@ func (c *cLab) configVeth(dummyInterface string, la LinkAttributes, ns string) e
 	if err != nil {
 		return err
 	}
-
 	return nil
+
 }
 
 func (c *cLab) setLinkAttributes(namespaceName string, cnamespace netns.NsHandle, oldLinkName string, la LinkAttributes) error {
 	hostNetNs, _ := netns.Get()
 	netns.Set(cnamespace)
+	runtime.LockOSThread()
 	link, err := netlink.LinkByName(oldLinkName)
 	if err != nil {
 		return err
