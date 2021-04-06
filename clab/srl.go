@@ -16,6 +16,10 @@ type mac struct {
 	MAC string
 }
 
+type SRLNode struct {
+	Node
+}
+
 func generateSRLTopologyFile(src, labDir string, index int) error {
 	dst := path.Join(labDir, "topology.yml")
 	tpl, err := template.ParseFiles(src)
@@ -48,7 +52,7 @@ func generateSRLTopologyFile(src, labDir string, index int) error {
 	return nil
 }
 
-func initSRLNode(c *CLab, nodeCfg NodeConfig, node *Node, user string, envs map[string]string) error {
+func (node *SRLNode) InitNode(c *CLab, nodeCfg NodeConfig, user string, envs map[string]string) error {
 	var err error
 	// initialize the global parameters with defaults, can be overwritten later
 	node.Config, err = c.configInit(&nodeCfg, node.Kind)
@@ -56,7 +60,7 @@ func initSRLNode(c *CLab, nodeCfg NodeConfig, node *Node, user string, envs map[
 		return err
 	}
 
-	lp, err := c.licenseInit(&nodeCfg, node)
+	lp, err := c.licenseInit(&nodeCfg, &node.Node)
 	if err != nil {
 		return err
 	}
@@ -119,4 +123,8 @@ func initSRLNode(c *CLab, nodeCfg NodeConfig, node *Node, user string, envs map[
 	node.Binds = append(node.Binds, fmt.Sprint(topoPath, ":/tmp/topology.yml:ro"))
 
 	return err
+}
+
+func init() {
+	RegisterNodeType("SRL")
 }

@@ -327,3 +327,29 @@ func StringInSlice(slice []string, val string) (int, bool) {
 	}
 	return -1, false
 }
+
+// retrieve all links of a given Node.
+// convention is, that the Link attributes of given
+// node are returned in the A attribute of the Link struct
+func (c *CLab) GetLinks(n *Node) []*Link {
+	var links []*Link
+	for _, l := range c.Links {
+		if l.A.Node == n {
+			links = append(links, l)
+		} else if l.B.Node == n {
+			link := &Link{
+				A:      l.B,
+				B:      l.A,
+				MTU:    l.MTU,
+				Labels: l.Labels,
+			}
+			links = append(links, link)
+		}
+
+	}
+	return links
+}
+
+func RegisterNodeType(name string) {
+	println("Registered NodeType: ", name)
+}

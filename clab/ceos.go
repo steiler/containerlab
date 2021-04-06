@@ -13,6 +13,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type CeosNode struct {
+	Node
+}
+
 func ceosPostDeploy(ctx context.Context, c *CLab, node *Node, lworkers uint) error {
 	// regenerate ceos config since it is now known which IP address docker assigned to this container
 	err := node.generateConfig(node.ResConfig)
@@ -50,7 +54,7 @@ func ceosPostDeploy(ctx context.Context, c *CLab, node *Node, lworkers uint) err
 	return err
 }
 
-func initCeosNode(c *CLab, nodeCfg NodeConfig, node *Node, user string, envs map[string]string) error {
+func (node *CeosNode) InitNode(c *CLab, nodeCfg NodeConfig, user string, envs map[string]string) error {
 	var err error
 
 	// initialize the global parameters with defaults, can be overwritten later

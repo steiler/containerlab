@@ -5,7 +5,15 @@ import (
 	"path"
 )
 
-func initSROSNode(c *CLab, nodeCfg NodeConfig, node *Node, user string, envs map[string]string) error {
+type VrSROSNode struct {
+	Node
+}
+
+func init() {
+	RegisterNodeType("VrSROS")
+}
+
+func (node *VrSROSNode) InitNode(c *CLab, nodeCfg NodeConfig, user string, envs map[string]string) error {
 	var err error
 	node.Config, err = c.configInit(&nodeCfg, node.Kind)
 	if err != nil {
@@ -20,7 +28,7 @@ func initSROSNode(c *CLab, nodeCfg NodeConfig, node *Node, user string, envs map
 	node.NodeType = c.typeInit(&nodeCfg, node.Kind)
 
 	// initialize license file
-	lp, err := c.licenseInit(&nodeCfg, node)
+	lp, err := c.licenseInit(&nodeCfg, &node.Node)
 	if err != nil {
 		return err
 	}

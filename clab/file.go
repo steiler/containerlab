@@ -263,10 +263,15 @@ func (c *CLab) CreateNodeDirStructure(node *Node) (err error) {
 // GenerateConfig generates configuration for the nodes
 func (node *Node) generateConfig(dst string) error {
 	log.Debugf("generating config for node %s from file %s", node.ShortName, node.Config)
-	tpl, err := template.New(filepath.Base(node.Config)).ParseFiles(node.Config)
+	funcMap := template.FuncMap{
+		// INSERT TEMPLTE FUNCTION HERE
+		//"extractSrlInterfaces": nil,
+	}
+	tpl, err := template.New(filepath.Base(node.Config)).Funcs(funcMap).ParseFiles(node.Config)
 	if err != nil {
 		return err
 	}
+
 	dstBytes := new(bytes.Buffer)
 	err = tpl.Execute(dstBytes, node)
 	if err != nil {

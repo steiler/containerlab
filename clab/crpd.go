@@ -5,7 +5,11 @@ import (
 	"path"
 )
 
-func initCrpdNode(c *CLab, nodeCfg NodeConfig, node *Node, user string, envs map[string]string) error {
+type CrpdNode struct {
+	Node
+}
+
+func (node *CrpdNode) Init(c *CLab, nodeCfg NodeConfig, user string, envs map[string]string) error {
 	var err error
 
 	node.Config, err = c.configInit(&nodeCfg, node.Kind)
@@ -18,7 +22,7 @@ func initCrpdNode(c *CLab, nodeCfg NodeConfig, node *Node, user string, envs map
 	node.User = user
 
 	// initialize license file
-	lp, err := c.licenseInit(&nodeCfg, node)
+	lp, err := c.licenseInit(&nodeCfg, &node.Node)
 	if err != nil {
 		return err
 	}

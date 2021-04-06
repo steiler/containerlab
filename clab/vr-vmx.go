@@ -2,7 +2,11 @@ package clab
 
 import "fmt"
 
-func initVrVMXNode(c *CLab, nodeCfg NodeConfig, node *Node, user string, envs map[string]string) error {
+type VrVMXNode struct {
+	Node
+}
+
+func (node *VrVMXNode) InitNode(c *CLab, nodeCfg NodeConfig, user string, envs map[string]string) error {
 	var err error
 	node.Image = c.imageInitialization(&nodeCfg, node.Kind)
 	node.Group = c.groupInitialization(&nodeCfg, node.Kind)

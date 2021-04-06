@@ -134,6 +134,7 @@ type LinkConfig struct {
 	Labels    map[string]string `yaml:"labels,omitempty"`
 }
 
+<<<<<<< HEAD
 // Node is a struct that contains the information of a container element
 type Node struct {
 	ShortName string
@@ -177,6 +178,8 @@ type Node struct {
 	Labels map[string]string
 }
 
+=======
+>>>>>>> reorg
 // Link is a struct that contains the information of a link between 2 containers
 type Link struct {
 	A      *Endpoint
@@ -497,52 +500,6 @@ func (c *CLab) NewNode(nodeName string, nodeCfg NodeConfig, idx int) error {
 	node.Publish = c.publishInit(&nodeCfg, node.Kind)
 
 	switch node.Kind {
-	case "ceos":
-		err = initCeosNode(c, nodeCfg, node, user, envs)
-		if err != nil {
-			return err
-		}
-
-	case "srl":
-		err = initSRLNode(c, nodeCfg, node, user, envs)
-		if err != nil {
-			return err
-		}
-	case "crpd":
-		err = initCrpdNode(c, nodeCfg, node, user, envs)
-		if err != nil {
-			return err
-		}
-	case "sonic-vs":
-		err = initSonicNode(c, nodeCfg, node, user, envs)
-		if err != nil {
-			return err
-		}
-	case "vr-sros":
-		err = initSROSNode(c, nodeCfg, node, user, envs)
-		if err != nil {
-			return err
-		}
-	case "vr-vmx":
-		err = initVrVMXNode(c, nodeCfg, node, user, envs)
-		if err != nil {
-			return err
-		}
-	case "vr-xrv":
-		err = initVrXRVNode(c, nodeCfg, node, user, envs)
-		if err != nil {
-			return err
-		}
-	case "vr-xrv9k":
-		err = initVrXRV9kNode(c, nodeCfg, node, user, envs)
-		if err != nil {
-			return err
-		}
-	case "vr-veos":
-		err = initVrVeosNode(c, nodeCfg, node, user, envs)
-		if err != nil {
-			return err
-		}
 	case "alpine", "linux", "mysocketio":
 		err = initLinuxNode(c, nodeCfg, node, user, envs)
 		if err != nil {
@@ -554,7 +511,10 @@ func (c *CLab) NewNode(nodeName string, nodeCfg NodeConfig, idx int) error {
 		node.Position = c.positionInitialization(&nodeCfg, node.Kind)
 
 	default:
-		return fmt.Errorf("Node '%s' refers to a kind '%s' which is not supported. Supported kinds are %q", nodeName, node.Kind, kinds)
+		err = node.InitNode(c, nodeCfg, user, envs)
+		if err != nil {
+			return err
+		}
 	}
 
 	// init labels after all node kinds are processed
