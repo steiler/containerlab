@@ -1,13 +1,16 @@
 package clab
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 type VrVeosNode struct {
 	Node
 }
 
 func init() {
-	RegisterNodeType("VrVeosNode")
+	RegisterNodeType("VrVeos", &SRLNode{})
 }
 
 func (node *VrVeosNode) InitNode(c *CLab, nodeCfg NodeConfig, user string, envs map[string]string) error {
@@ -36,4 +39,8 @@ func (node *VrVeosNode) InitNode(c *CLab, nodeCfg NodeConfig, user string, envs 
 	node.Cmd = fmt.Sprintf("--username %s --password %s --hostname %s --connection-mode %s --trace", node.Env["USERNAME"], node.Env["PASSWORD"], node.ShortName, node.Env["CONNECTION_MODE"])
 
 	return err
+}
+
+func (_ *VrVeosNode) PostDeploy(ctx context.Context, c *CLab, node *Node, lworkers uint) error {
+	return nil
 }

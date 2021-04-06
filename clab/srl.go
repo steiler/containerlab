@@ -1,6 +1,7 @@
 package clab
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"os"
@@ -125,6 +126,10 @@ func (node *SRLNode) InitNode(c *CLab, nodeCfg NodeConfig, user string, envs map
 	return err
 }
 
+func (_ *SRLNode) PostDeploy(ctx context.Context, c *CLab, lworkers uint) error {
+	return nil
+}
+
 func init() {
-	RegisterNodeType("SRL")
+	RegisterNodeType("SRL", &SRLNode{})
 }

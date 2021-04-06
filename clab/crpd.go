@@ -9,7 +9,7 @@ type CrpdNode struct {
 	Node
 }
 
-func (node *CrpdNode) Init(c *CLab, nodeCfg NodeConfig, user string, envs map[string]string) error {
+func (node *CrpdNode) InitNode(c *CLab, nodeCfg NodeConfig, user string, envs map[string]string) error {
 	var err error
 
 	node.Config, err = c.configInit(&nodeCfg, node.Kind)

@@ -118,7 +118,7 @@ func (c *CLab) ExecPostDeployTasks(ctx context.Context, node *Node, lworkers uin
 	switch node.Kind {
 	case "ceos":
 		log.Debugf("Running postdeploy actions for Arista cEOS '%s' node", node.ShortName)
-		return ceosPostDeploy(ctx, c, node, lworkers)
+		return node.PostDeploy(ctx, c, node, lworkers)
 	case "crpd":
 		// exec `service ssh restart` to start ssh service and take into account mounted sshd_config
 		execConfig := types.ExecConfig{Tty: false, AttachStdout: false, AttachStderr: false, Cmd: strings.Fields("service ssh restart")}
@@ -348,8 +348,4 @@ func (c *CLab) GetLinks(n *Node) []*Link {
 
 	}
 	return links
-}
-
-func RegisterNodeType(name string) {
-	println("Registered NodeType: ", name)
 }

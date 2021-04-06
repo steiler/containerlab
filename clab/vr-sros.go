@@ -1,6 +1,7 @@
 package clab
 
 import (
+	"context"
 	"fmt"
 	"path"
 )
@@ -10,7 +11,7 @@ type VrSROSNode struct {
 }
 
 func init() {
-	RegisterNodeType("VrSROS")
+	RegisterNodeType("VrSROS", &VrSROSNode{})
 }
 
 func (node *VrSROSNode) InitNode(c *CLab, nodeCfg NodeConfig, user string, envs map[string]string) error {
@@ -54,4 +55,8 @@ func (node *VrSROSNode) InitNode(c *CLab, nodeCfg NodeConfig, user string, envs 
 		node.NodeType,
 	)
 	return err
+}
+
+func (_ *VrSROSNode) PostDeploy(ctx context.Context, c *CLab, node *Node, lworkers uint) error {
+	return nil
 }
