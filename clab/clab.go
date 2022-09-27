@@ -166,13 +166,8 @@ func (c *CLab) GlobalRuntime() runtime.ContainerRuntime {
 // CreateNodes schedules nodes creation and returns a waitgroup for all nodes.
 // Nodes interdependencies are created in this function.
 func (c *CLab) CreateNodes(ctx context.Context, maxWorkers uint,
-	serialNodes map[string]struct{},
+	serialNodes map[string]struct{}, dm DependencyManager,
 ) (*sync.WaitGroup, error) {
-	dm := NewDependencyManager()
-
-	for nodeName := range c.Nodes {
-		dm.AddNode(nodeName)
-	}
 
 	// nodes with static mgmt IP should be scheduled before the dynamic ones
 	err := createStaticDynamicDependency(c.Nodes, dm)
@@ -228,7 +223,7 @@ func createNamespaceSharingDependency(nodeMap map[string]nodes.Node, dm Dependen
 		}
 
 		// since the referenced container is clab-managed node, we create a dependency between the nodes
-		dm.AddDependency(referencedNode, nodeName)
+		dm.AddDependency(nodeName, types.NewWaitFor(referencedNode, types.WaitForCreated))
 	}
 }
 
@@ -251,7 +246,7 @@ func createStaticDynamicDependency(n map[string]nodes.Node, dm DependencyManager
 	for dynNodeName := range dynIPNodes {
 		// and add their wait group to the the static nodes, while increasing the waitgroup
 		for staticNodeName := range staticIPNodes {
-			err := dm.AddDependency(staticNodeName, dynNodeName)
+			err := dm.AddDependency(dynNodeName, types.NewWaitFor(staticNodeName, types.WaitForCreated))
 			if err != nil {
 				return err
 			}
@@ -265,7 +260,7 @@ func createWaitForDependency(n map[string]nodes.Node, dm DependencyManager) erro
 	for waiterNode, node := range n {
 		// add node's waitFor nodes to the dependency manager
 		for _, waitForNode := range node.Config().WaitFor {
-			err := dm.AddDependency(waitForNode, waiterNode)
+			err := dm.AddDependency(waiterNode, waitForNode)
 			if err != nil {
 				return err
 			}
@@ -318,7 +313,7 @@ func (c *CLab) scheduleNodes(ctx context.Context, maxWorkers int,
 				c.m.Unlock()
 
 				// signal to dependency manager that this node is done
-				dm.SignalDone(node.Config().ShortName)
+				dm.SignalDone(node.Config().ShortName, types.WaitForCreated)
 			case <-ctx.Done():
 				return
 			}
@@ -348,7 +343,7 @@ func (c *CLab) scheduleNodes(ctx context.Context, maxWorkers int,
 		// to be set to zero by their depending containers, then enqueue to the creation channel
 		go func(node nodes.Node, dm DependencyManager, workerChan chan<- nodes.Node, wfcwg *sync.WaitGroup) {
 			// wait for all the nodes that node depends on
-			err := dm.WaitForNodeDependencies(node.Config().ShortName)
+			err := dm.WaitForNodeDependencies(node.Config().ShortName, types.WaitForCreated)
 			if err != nil {
 				log.Error(err)
 			}

@@ -7,6 +7,7 @@ package types
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -140,8 +141,8 @@ type NodeConfig struct {
 	DeploymentStatus string `json:"deployment-status,omitempty"`
 
 	// Extras
-	Extras  *Extras  `json:"extras,omitempty"` // Extra node parameters
-	WaitFor []string `json:"wait-for,omitempty"`
+	Extras  *Extras    `json:"extras,omitempty"` // Extra node parameters
+	WaitFor []*WaitFor `json:"wait-for,omitempty"`
 }
 
 type HostRequirements struct {
@@ -359,4 +360,38 @@ func (mse *MySocketIoEntry) getContainerName() (string, error) {
 type LabData struct {
 	Containers []ContainerDetails `json:"containers"`
 	MySocketIo []*MySocketIoEntry `json:"mysocketio"`
+}
+
+type WaitFor struct {
+	Node  string       `json:"node"`            // the node that is to be waited for
+	Phase WaitForPhase `json:"phase,omitempty"` // the phase that the node must have completed
+}
+
+// constructor for new WaitFor structs
+func NewWaitFor(name string, phase WaitForPhase) *WaitFor {
+	return &WaitFor{Node: name, Phase: phase}
+}
+
+//go:generate go run golang.org/x/tools/cmd/stringer -type=WaitForPhase
+
+type WaitForPhase string
+
+const (
+	WaitForCreated    WaitForPhase = "created"
+	WaitForConfigured WaitForPhase = "configured"
+	WaitForHealthy    WaitForPhase = "healthy"
+)
+
+var WaitForPhases []WaitForPhase = []WaitForPhase{WaitForCreated, WaitForConfigured, WaitForHealthy}
+
+// ParseWaitFor parses a WaitFor entry as string and return the WaitFor struct
+func ParseWaitFor(s string) *WaitFor {
+	wf := &WaitFor{}
+	err := json.Unmarshal([]byte(s), wf)
+	if err != nil {
+		// if Unmarshal fails we expect it to be the initial format, a simple plain slice of node names
+		wf.Node = s
+		wf.Phase = WaitForCreated
+	}
+	return wf
 }

@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	types "github.com/srl-labs/containerlab/types"
 )
 
 // MockDependencyManager is a mock of DependencyManager interface.
@@ -34,17 +35,17 @@ func (m *MockDependencyManager) EXPECT() *MockDependencyManagerMockRecorder {
 }
 
 // AddDependency mocks base method.
-func (m *MockDependencyManager) AddDependency(dependee, depender string) error {
+func (m *MockDependencyManager) AddDependency(depender string, wf *types.WaitFor) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddDependency", dependee, depender)
+	ret := m.ctrl.Call(m, "AddDependency", depender, wf)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // AddDependency indicates an expected call of AddDependency.
-func (mr *MockDependencyManagerMockRecorder) AddDependency(dependee, depender interface{}) *gomock.Call {
+func (mr *MockDependencyManagerMockRecorder) AddDependency(depender, wf interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDependency", reflect.TypeOf((*MockDependencyManager)(nil).AddDependency), dependee, depender)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDependency", reflect.TypeOf((*MockDependencyManager)(nil).AddDependency), depender, wf)
 }
 
 // AddNode mocks base method.
@@ -73,16 +74,31 @@ func (mr *MockDependencyManagerMockRecorder) CheckAcyclicity() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckAcyclicity", reflect.TypeOf((*MockDependencyManager)(nil).CheckAcyclicity))
 }
 
-// SignalDone mocks base method.
-func (m *MockDependencyManager) SignalDone(nodeName string) {
+// IsHealthCheckRequired mocks base method.
+func (m *MockDependencyManager) IsHealthCheckRequired(nodeName string) (bool, error) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SignalDone", nodeName)
+	ret := m.ctrl.Call(m, "IsHealthCheckRequired", nodeName)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsHealthCheckRequired indicates an expected call of IsHealthCheckRequired.
+func (mr *MockDependencyManagerMockRecorder) IsHealthCheckRequired(nodeName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsHealthCheckRequired", reflect.TypeOf((*MockDependencyManager)(nil).IsHealthCheckRequired), nodeName)
+}
+
+// SignalDone mocks base method.
+func (m *MockDependencyManager) SignalDone(nodeName string, phase types.WaitForPhase) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SignalDone", nodeName, phase)
 }
 
 // SignalDone indicates an expected call of SignalDone.
-func (mr *MockDependencyManagerMockRecorder) SignalDone(nodeName interface{}) *gomock.Call {
+func (mr *MockDependencyManagerMockRecorder) SignalDone(nodeName, phase interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignalDone", reflect.TypeOf((*MockDependencyManager)(nil).SignalDone), nodeName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignalDone", reflect.TypeOf((*MockDependencyManager)(nil).SignalDone), nodeName, phase)
 }
 
 // String mocks base method.
@@ -100,15 +116,15 @@ func (mr *MockDependencyManagerMockRecorder) String() *gomock.Call {
 }
 
 // WaitForNodeDependencies mocks base method.
-func (m *MockDependencyManager) WaitForNodeDependencies(nodeName string) error {
+func (m *MockDependencyManager) WaitForNodeDependencies(nodeName string, phase types.WaitForPhase) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WaitForNodeDependencies", nodeName)
+	ret := m.ctrl.Call(m, "WaitForNodeDependencies", nodeName, phase)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // WaitForNodeDependencies indicates an expected call of WaitForNodeDependencies.
-func (mr *MockDependencyManagerMockRecorder) WaitForNodeDependencies(nodeName interface{}) *gomock.Call {
+func (mr *MockDependencyManagerMockRecorder) WaitForNodeDependencies(nodeName, phase interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitForNodeDependencies", reflect.TypeOf((*MockDependencyManager)(nil).WaitForNodeDependencies), nodeName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitForNodeDependencies", reflect.TypeOf((*MockDependencyManager)(nil).WaitForNodeDependencies), nodeName, phase)
 }

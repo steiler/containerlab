@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/srl-labs/containerlab/types"
 )
 
 type DependencyManager interface {
@@ -13,17 +14,19 @@ type DependencyManager interface {
 	AddNode(name string)
 	// AddDependency adds a dependency between depender and dependee.
 	// The depender will effectively wait for the dependee to finish.
-	AddDependency(dependee, depender string) error
+	AddDependency(depender string, wf *types.WaitFor) error
 	// WaitForNodeDependencies is called by a node that is meant to be created.
 	// This call will bock until all the nodes that this node depends on are created.
-	WaitForNodeDependencies(nodeName string) error
+	WaitForNodeDependencies(nodeName string, phase types.WaitForPhase) error
 	// SignalDone is called by a node that has finished the creation process.
 	// internally the dependent nodes will be "notified" that an additional (if multiple exist) dependency is satisfied.
-	SignalDone(nodeName string)
+	SignalDone(nodeName string, phase types.WaitForPhase)
 	// CheckAcyclicity checks if dependencies contain cycles.
 	CheckAcyclicity() error
 	// String returns a string representation of dependencies recorded with dependency manager.
 	String() string
+	// IsHealthCheckRequired returns true if dependencies exist for the given node to turn healthy.
+	IsHealthCheckRequired(nodeName string) (bool, error)
 }
 
 type defaultDependencyManager struct {
@@ -33,42 +36,49 @@ type defaultDependencyManager struct {
 	nodeWaitGroup map[string]*sync.WaitGroup
 	// Names of the nodes that depend on a given node are listed here.
 	// On successful creation of the said node, all the depending nodes (dependers) wait groups will be decremented.
-	nodeDependers map[string][]string
+	nodeDependers map[string]map[types.WaitForPhase][]string
 }
 
 func NewDependencyManager() DependencyManager {
 	return &defaultDependencyManager{
 		nodeWaitGroup: map[string]*sync.WaitGroup{},
-		nodeDependers: map[string][]string{},
+		nodeDependers: map[string]map[types.WaitForPhase][]string{},
 	}
 }
 
 // AddNode adds a node to the dependency manager.
 func (dm *defaultDependencyManager) AddNode(name string) {
 	dm.nodeWaitGroup[name] = &sync.WaitGroup{}
-	dm.nodeDependers[name] = []string{}
+	dm.nodeDependers[name] = map[types.WaitForPhase][]string{}
+
+	// init the structs for all WaitForPhases
+	for _, phaseName := range types.WaitForPhases {
+		dm.nodeDependers[name][phaseName] = []string{}
+	}
 }
 
 // AddDependency adds a dependency between depender and dependee.
 // The depender will effectively wait for the dependee to finish.
-func (dm *defaultDependencyManager) AddDependency(dependee, depender string) error {
+func (dm *defaultDependencyManager) AddDependency(depender string, wf *types.WaitFor) error {
 	// first check if the referenced nodes are known to the dm
 	if _, exists := dm.nodeWaitGroup[depender]; !exists {
 		return fmt.Errorf("node %q is not known to the dependency manager", depender)
 	}
-	if _, exists := dm.nodeDependers[dependee]; !exists {
-		return fmt.Errorf("node %q is not known to the dependency manager", dependee)
+	if _, exists := dm.nodeDependers[wf.Node]; !exists {
+		return fmt.Errorf("node %q is not known to the dependency manager", wf.Node)
 	}
+
 	// increase the WaitGroup by one for the depender
 	dm.nodeWaitGroup[depender].Add(1)
+
 	// add a depender node name for a given dependee
-	dm.nodeDependers[dependee] = append(dm.nodeDependers[dependee], depender)
+	dm.nodeDependers[wf.Node][wf.Phase] = append(dm.nodeDependers[wf.Node][wf.Phase], depender)
 	return nil
 }
 
 // WaitForNodeDependencies is called by a node that is meant to be created.
 // This call will bock until all the nodes that this node depends on are created.
-func (dm *defaultDependencyManager) WaitForNodeDependencies(nodeName string) error {
+func (dm *defaultDependencyManager) WaitForNodeDependencies(nodeName string, phase types.WaitForPhase) error {
 	// first check if the referenced node is known to the dm
 	if _, exists := dm.nodeWaitGroup[nodeName]; !exists {
 		return fmt.Errorf("node %q is not known to the dependency manager", nodeName)
@@ -79,21 +89,44 @@ func (dm *defaultDependencyManager) WaitForNodeDependencies(nodeName string) err
 
 // SignalDone is called by a node that has finished the creation process.
 // internally the dependent nodes will be "notified" that an additional (if multiple exist) dependency is satisfied.
-func (dm *defaultDependencyManager) SignalDone(nodeName string) {
+func (dm *defaultDependencyManager) SignalDone(nodeName string, phase types.WaitForPhase) {
 	// first check if the referenced node is known to the dm
 	if _, exists := dm.nodeDependers[nodeName]; !exists {
 		log.Errorf("tried to Signal Done for node %q but node is unknown to the DependencyManager", nodeName)
 		return
 	}
-	for _, depender := range dm.nodeDependers[nodeName] {
+	for _, depender := range dm.nodeDependers[nodeName][phase] {
 		dm.nodeWaitGroup[depender].Done()
 	}
+}
+
+// getDependersSliceWithoutPhasesDependency return the dm.nodeDependers but removes the phases information
+// basically from "map[string]map[types.WaitForPhase][]string" we return map[string][]string. The entries of
+// the different phases are merged, because for the acyclicity check the phases do not matter.
+func (dm *defaultDependencyManager) getDependersSliceWithoutPhasesDependency() map[string][]string {
+	dependers := map[string][]string{}
+
+	// we just need a plain list of dependencies, phases basically do not matter
+	// iterate through the dependers per node
+	for d, _ := range dm.nodeDependers {
+		// iterate through their phases
+		for _, phase := range types.WaitForPhases {
+			// if the dependers entity does not have a string slice under index "d" create it
+			if _, exists := dependers[d]; !exists {
+				dependers[d] = []string{}
+			}
+			// basically merge all the phases dependencies into the dependers datastructure
+			dependers[d] = dm.nodeDependers[d][phase]
+		}
+	}
+	return dependers
 }
 
 // CheckAcyclicity checks if dependencies contain cycles.
 func (dm *defaultDependencyManager) CheckAcyclicity() error {
 	log.Debugf("Dependencies:\n%s", dm.String())
-	if !isAcyclic(dm.nodeDependers, 1) {
+
+	if !isAcyclic(dm.getDependersSliceWithoutPhasesDependency(), 1) {
 		return fmt.Errorf("cyclic dependencies found!\n%s", dm.String())
 	}
 
@@ -116,8 +149,13 @@ func (dm *defaultDependencyManager) String() string {
 
 	// build the dependency datastruct
 	for dependee, dependers := range dm.nodeDependers {
-		for _, depender := range dependers {
-			dependencies[depender] = append(dependencies[depender], dependee)
+		// iterate the phases
+		for _, phase := range types.WaitForPhases {
+			// iterate all dependers of the phases
+			for _, depender := range dependers[phase] {
+				// add them to the dependencies
+				dependencies[depender] = append(dependencies[depender], dependee)
+			}
 		}
 	}
 
@@ -187,4 +225,12 @@ func isAcyclic(nodeDependers map[string][]string, i int) bool {
 		remainingNodeDependers[dependee] = newRemainingNodeDependers
 	}
 	return isAcyclic(remainingNodeDependers, i+1)
+}
+
+// IsHealthCheckRequired returns true if dependencies exist for the given node to turn healthy.
+func (dm *defaultDependencyManager) IsHealthCheckRequired(nodeName string) (bool, error) {
+	if _, exists := dm.nodeDependers[nodeName]; !exists {
+		return true, fmt.Errorf("node %q not found in DependencyManager", nodeName)
+	}
+	return len(dm.nodeDependers[nodeName][types.WaitForHealthy]) > 0, nil
 }

@@ -211,7 +211,13 @@ func deployFn(_ *cobra.Command, _ []string) error {
 		n.Config().ExtraHosts = extraHosts
 	}
 
-	nodesWg, err := c.CreateNodes(ctx, nodeWorkers, serialNodes)
+	dm := clab.NewDependencyManager()
+
+	for nodeName := range c.Nodes {
+		dm.AddNode(nodeName)
+	}
+
+	nodesWg, err := c.CreateNodes(ctx, nodeWorkers, serialNodes, dm)
 	if err != nil {
 		return err
 	}
@@ -252,6 +258,33 @@ func deployFn(_ *cobra.Command, _ []string) error {
 				if err != nil {
 					log.Errorf("failed to run postdeploy task for node %s: %v", node.Config().ShortName, err)
 				}
+				// signal the DM, that the configuration phase is done
+				dm.SignalDone(node.Config().ShortName, types.WaitForConfigured)
+
+				// check if there is a dependency for this node for the healty state, if not return
+				healthcheckRequired, err := dm.IsHealthCheckRequired(node.Config().ShortName)
+				if err != nil {
+					log.Errorf("isHealtcheckRequired for node %q yielded %v", node.Config().ShortName, err)
+					return
+				}
+				if !healthcheckRequired {
+					// No dependency on the healthy state, so we're done here, return
+					return
+				}
+
+				// if there is a dependecy on the healthy state of this node, enter the checking procedure
+				for {
+					healthy, err := c.Runtimes[node.Config().Runtime].GetContainerHealth(ctx, node.Config().ShortName)
+					if err != nil {
+						log.Error("error checking for node health %v. Continuing deployment anyways", err)
+						break
+					}
+					if healthy {
+						log.Infof("node %q turned healthy, continuing")
+						break
+					}
+				}
+
 			}(node, wg)
 		}
 		wg.Wait()

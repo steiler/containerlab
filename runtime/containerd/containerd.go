@@ -850,3 +850,9 @@ func (c *ContainerdRuntime) GetContainerStatus(ctx context.Context, cID string) 
 	}
 	return runtime.NotFound
 }
+
+// GetContainerHealth returns true is the container is reported as being healthy, false otherwise
+func (c *ContainerdRuntime) GetContainerHealth(ctx context.Context, containerID string) (bool, error) {
+	log.Errorf("function GetContainerHealth(...) not implemented in the Containerlab ContainerdRuntime")
+	return true, nil
+}
