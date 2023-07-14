@@ -43,6 +43,7 @@ require (
 	golang.org/x/sys v0.10.0
 	golang.org/x/term v0.10.0
 	gopkg.in/yaml.v2 v2.4.0
+	k8s.io/cri-api v0.27.1
 )
 
 require (
@@ -274,7 +275,7 @@ require (
 	google.golang.org/api v0.124.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
-	google.golang.org/grpc v1.55.0 // indirect
+	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
