@@ -466,7 +466,7 @@ func (c *CLab) verifyLinks() error {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys) // sort for deterministic error message
-		return fmt.Errorf("endpoints %q appeared more than once in the links section of the topology file", dups)
+		return fmt.Errorf("endpoints %q appeared more than once in the links section of the topology file", keys)
 	}
 	return nil
 }
