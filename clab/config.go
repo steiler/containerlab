@@ -443,23 +443,29 @@ func (c *CLab) CheckTopologyDefinition(ctx context.Context) error {
 func (c *CLab) verifyLinks() error {
 	endpoints := map[string]struct{}{}
 	// dups accumulates duplicate links
-	dups := []string{}
+	dups := map[string]struct{}{}
 	for _, l := range c.Links {
 		for _, e := range []*types.Endpoint{l.A, l.B} {
 			e_string := e.String()
 			if _, ok := endpoints[e_string]; ok {
-				// macvlan interface can appear multiple times
+				dups[e_string] = struct{}{}
+			}
+			if _, ok := endpoints[e_string]; ok {
+				// macvlan interfaces can appear multiple times
 				if strings.Contains(e_string, "macvlan") {
 					continue
 				}
-
-				dups = append(dups, e_string)
+				dups[e_string] = struct{}{}
 			}
 			endpoints[e_string] = struct{}{}
 		}
 	}
 	if len(dups) != 0 {
-		sort.Strings(dups) // sort for deterministic error message
+		keys := make([]string, 0, len(dups))
+		for k := range dups {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys) // sort for deterministic error message
 		return fmt.Errorf("endpoints %q appeared more than once in the links section of the topology file", dups)
 	}
 	return nil
