@@ -169,6 +169,16 @@ func (l *LinkVEth) Deploy(ctx context.Context) error {
 		}
 	}
 
+	// we need to update the Endpoint with system assigned data like
+	// MAC addresses tht have not been assigned by the user
+	for _, ep := range l.GetEndpoints() {
+		// update the Endpoint with the assigned mac address
+		err = ep.VerifyAndPopulateMacAddress()
+		if err != nil {
+			return err
+		}
+	}
+
 	l.deploymentState = LinkDeploymentStateDeployed
 
 	return nil

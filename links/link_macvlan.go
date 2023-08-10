@@ -175,6 +175,21 @@ func (l *LinkMacVlan) Deploy(ctx context.Context) error {
 
 	// add the link to the Node Namespace
 	err = l.NodeEndpoint.GetNode().AddNetlinkLinkToContainer(ctx, mvInterface, SetNameMACAndUpInterface(mvInterface, l.NodeEndpoint))
+	if err != nil {
+		return err
+	}
+	// update the HostEndpoint with the assigned mac address
+	err = l.HostEndpoint.VerifyAndPopulateMacAddress()
+	if err != nil {
+		return err
+	}
+
+	// update the NodeEndpoint with the assigned mac address
+	err = l.NodeEndpoint.VerifyAndPopulateMacAddress()
+	if err != nil {
+		return err
+	}
+
 	return err
 }
 

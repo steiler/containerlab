@@ -1,6 +1,7 @@
 package links
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 
@@ -15,6 +16,11 @@ type Endpoint interface {
 	GetIfaceName() string
 	GetRandIfaceName() string
 	GetMac() net.HardwareAddr
+	// Will populate the Endpoint with the assigned
+	// MAC address. Will raise an error if the MAC is already
+	// populated (e.g. via topology config) which differs from
+	// the reported value.
+	VerifyAndPopulateMacAddress() error
 	String() string
 	// GetLink retrieves the link that the endpoint is assigned to
 	GetLink() Link
@@ -50,6 +56,38 @@ func (e *EndpointGeneric) GetIfaceName() string {
 
 func (e *EndpointGeneric) GetMac() net.HardwareAddr {
 	return e.MAC
+}
+
+func (e *EndpointGeneric) VerifyAndPopulateMacAddress() error {
+	// retrieve netlink infos
+	l, err := e.getNetlinkInterface()
+	if err != nil {
+		return err
+	}
+	// extract mac address
+	m := l.Attrs().HardwareAddr
+
+	switch {
+	case len(e.MAC) == 0:
+		// if no MAC is set for the endpoint take the provided mac as given
+		e.MAC = m
+	case !bytes.Equal(m, e.MAC):
+		// if a MAC is already set, make sure they match otherwise error
+		return fmt.Errorf("endpoint %s expected mac %q, got mac %q", e.String(), e.MAC, m)
+	}
+	// provided and expected macs must be equal return no error
+	return nil
+}
+
+func (e *EndpointGeneric) getNetlinkInterface() (netlink.Link, error) {
+	var l netlink.Link
+	err := e.GetNode().ExecFunction(
+		func(_ ns.NetNS) error {
+			var err error
+			l, err = netlink.LinkByName(e.GetIfaceName())
+			return err
+		})
+	return l, err
 }
 
 func (e *EndpointGeneric) GetLink() Link {
