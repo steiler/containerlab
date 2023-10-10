@@ -100,18 +100,6 @@ func assert(t *testing.T, val, exp interface{}) {
 	}
 }
 
-func TestLinkName(t *testing.T) {
-	l := gettestLink()
-	n1, n2, _ := linkName(l)
-	assert(t, n1, "to_b")
-	assert(t, n2, "to_a")
-
-	l.Vars[vkLinkNum] = 1
-	n1, n2, _ = linkName(l)
-	assert(t, n1, "to_b_1")
-	assert(t, n2, "to_a_1")
-}
-
 func TestLinkIP(t *testing.T) {
 	l := gettestLink()
 	n1, n2, _ := linkIP(l)

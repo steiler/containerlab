@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/netip"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -27,6 +26,7 @@ const (
 
 	vkSystemIP = "clab_system_ip" // optional, system IP if present could be used to calc link IPs
 	vkLinkIP   = "clab_link_ip"   // optional, link IP
+	vkLinkNet  = "clab_link_net"  // optional, link Net
 	vkLinkName = "clab_link_name" // optional, from ShortNames
 	vkLinkNum  = "clab_link_num"  // optional, link number in case you have multiple, used to calculate the name
 )
@@ -116,95 +116,25 @@ func prepareEpVars(ep links.Endpoint) map[string]interface{} {
 			continue
 		}
 		farResult := internalPrepareEpVars(linkEp)
-		delete(farResult, vkFarEnd)
 		vars[vkFarEnd] = farResult
 	}
 
 	return vars
 }
 
+func copyMap(input map[string]interface{}) map[string]interface{} {
+	result := map[string]interface{}{}
+	for k, v := range input {
+		result[k] = v
+	}
+	return result
+}
+
 func internalPrepareEpVars(ep links.Endpoint) map[string]interface{} {
-	vars := ep.GetLink().GetVars()
+	vars := copyMap(ep.GetLink().GetVars())
 	vars["port"] = ep.GetNode().TranslateInterfaceName(ep.GetIfaceName())
-
+	vars[vkNodeName] = ep.GetNode().GetShortName()
 	return vars
-}
-
-// Prepare variables for a specific link.
-func X_prepareLinkVars(link *types.Link, varsA, varsB Dict) error {
-	// Add a Dict for the far-end link vars and the far-end node name
-	varsA[vkFarEnd] = Dict{vkNodeName: link.B.Node.ShortName}
-	varsB[vkFarEnd] = Dict{vkNodeName: link.A.Node.ShortName}
-
-	// Add a key/value(s) pairs to the links vars (varsA & varsB)
-	// If multiple vars are specified, each links also gets the far end value
-	addValues := func(key string, v1 interface{}, v2 interface{}) {
-		varsA[key] = v1
-		(varsA[vkFarEnd]).(Dict)[key] = v2
-		varsB[key] = v2
-		(varsB[vkFarEnd]).(Dict)[key] = v1
-	}
-
-	// Ensure values are added to both ends of the link
-	for k, v := range link.Vars {
-		if k == vkFarEnd || k == vkNodeName {
-			return fmt.Errorf("%s: reserved variable name '%s' found", link.String(), k)
-		}
-
-		vv := reflect.ValueOf(v)
-		if vv.Kind() == reflect.Slice || vv.Kind() == reflect.Array {
-			// Array/slice should contain 2 values, one for each end of the link
-			if vv.Len() != 2 {
-				return fmt.Errorf("%s: variable %s should contain 2 elements, found %d: %v", link.String(), k, vv.Len(), v)
-			}
-			addValues(k, vv.Index(0).Interface(), vv.Index(1).Interface())
-			continue
-		}
-
-		if k == vkLinkIP {
-			// Calculate the remote IP
-			vs := fmt.Sprintf("%v", v)
-			ipF, err := ipFarEndS(vs)
-			if err != nil {
-				return fmt.Errorf("%s: %s", link.String(), err)
-			}
-			addValues(k, vs, ipF)
-			continue
-		}
-
-		addValues(k, v, v)
-	}
-
-	// Add additional values if they are not present
-	add := map[string]func(link *types.Link) (string, string, error){
-		vkLinkIP:   linkIP,
-		vkLinkName: linkName,
-	}
-
-	for k, f := range add {
-		if _, ok := varsA[k]; ok {
-			continue
-		}
-		a, b, err := f(link)
-		if err != nil {
-			return fmt.Errorf("%s: %s", link, err)
-		}
-		if a != "" {
-			addValues(k, a, b)
-		}
-	}
-
-	return nil
-}
-
-// Create a link name using the node names and optional link_num.
-func linkName(link *types.Link) (string, string, error) {
-	var linkNo string
-	if v, ok := link.Vars[vkLinkNum]; ok {
-		linkNo = fmt.Sprintf("_%v", v)
-	}
-	return fmt.Sprintf("to_%s%s", link.B.Node.ShortName, linkNo),
-		fmt.Sprintf("to_%s%s", link.A.Node.ShortName, linkNo), nil
 }
 
 // Calculate link IP from the system IPs at both ends.
