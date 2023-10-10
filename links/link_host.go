@@ -101,6 +101,13 @@ func (*hostLinkNode) GetLinkEndpointType() LinkEndpointType {
 	return LinkEndpointTypeHost
 }
 
+// TranslateInterfaceName provides a means to transform the topology file provided
+// interface names into NOS specific interface names
+func (*hostLinkNode) TranslateInterfaceName(ifName string) string {
+	// in the default implementation no translation is performed
+	return ifName
+}
+
 // GetHostLinkNode returns the host link node singleton.
 func GetHostLinkNode() Node {
 	if _hostLinkNodeInstance == nil {

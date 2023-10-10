@@ -216,6 +216,13 @@ func (*DefaultNode) CheckInterfaceName() error {
 	return nil
 }
 
+// TranslateInterfaceName provides a means to transform the topology file provided
+// interface names into NOS specific interface names
+func (*DefaultNode) TranslateInterfaceName(ifName string) string {
+	// in the default implementation no translation is performed
+	return ifName
+}
+
 // VerifyStartupConfig verifies that startup config files exists on disks.
 func (d *DefaultNode) VerifyStartupConfig(topoDir string) error {
 	cfg := d.Config().StartupConfig

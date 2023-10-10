@@ -10,6 +10,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/srl-labs/containerlab/clab"
+	"github.com/srl-labs/containerlab/links"
 	"github.com/srl-labs/containerlab/types"
 )
 
@@ -71,6 +72,12 @@ func PrepareVars(c *clab.CLab) map[string]*NodeConfig {
 			Vars:        vars,
 			Credentials: creds,
 		}
+
+		iface := []map[string]interface{}{}
+		for _, ep := range node.GetEndpoints() {
+			iface = append(iface, prepareEpVars(ep))
+		}
+		vars[vkLinks] = iface
 	}
 
 	// // prepare all links
@@ -101,8 +108,30 @@ func PrepareVars(c *clab.CLab) map[string]*NodeConfig {
 	return res
 }
 
+func prepareEpVars(ep links.Endpoint) map[string]interface{} {
+	vars := internalPrepareEpVars(ep)
+
+	for _, linkEp := range ep.GetLink().GetEndpoints() {
+		if linkEp == ep {
+			continue
+		}
+		farResult := internalPrepareEpVars(linkEp)
+		delete(farResult, vkFarEnd)
+		vars[vkFarEnd] = farResult
+	}
+
+	return vars
+}
+
+func internalPrepareEpVars(ep links.Endpoint) map[string]interface{} {
+	vars := ep.GetLink().GetVars()
+	vars["port"] = ep.GetNode().TranslateInterfaceName(ep.GetIfaceName())
+
+	return vars
+}
+
 // Prepare variables for a specific link.
-func prepareLinkVars(link *types.Link, varsA, varsB Dict) error {
+func X_prepareLinkVars(link *types.Link, varsA, varsB Dict) error {
 	// Add a Dict for the far-end link vars and the far-end node name
 	varsA[vkFarEnd] = Dict{vkNodeName: link.B.Node.ShortName}
 	varsB[vkFarEnd] = Dict{vkNodeName: link.A.Node.ShortName}

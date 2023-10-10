@@ -787,3 +787,14 @@ func (s *srl) CheckInterfaceName() error {
 
 	return nil
 }
+
+func (s *srl) TranslateInterfaceName(ifName string) string {
+	if ifName == "eth0" {
+		return "mgmt0"
+	}
+	// remove the 'e' from e.g. 'e1-2'
+	cutname, _ := strings.CutPrefix(ifName, "e")
+	// split '1-2' or '1-1-5' at the '-' and join again via '/'
+	identifier := strings.Join(strings.Split(cutname, "-"), "/")
+	return fmt.Sprintf("ethernet-%s", identifier)
+}

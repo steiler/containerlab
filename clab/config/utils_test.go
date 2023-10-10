@@ -124,38 +124,6 @@ func TestLinkIP(t *testing.T) {
 	assert(t, n2, "1.1.2.3/31")
 }
 
-func TestPrepareLinkVars(t *testing.T) {
-	a := make(Dict)
-	b := make(Dict)
-	l := gettestLink()
-	_ = prepareLinkVars(l, a, b)
-	assert(t, a, Dict{
-		vkFarEnd:   Dict{vkLinkIP: "1.1.2.1/31", vkLinkName: "to_a", vkNodeName: "b"},
-		vkLinkIP:   "1.1.2.0/31",
-		vkLinkName: "to_b",
-	})
-	assert(t, b, Dict{
-		vkFarEnd:   Dict{vkLinkIP: "1.1.2.0/31", vkLinkName: "to_b", vkNodeName: "a"},
-		vkLinkIP:   "1.1.2.1/31",
-		vkLinkName: "to_a",
-	})
-
-	l.Vars[vkLinkIP] = []string{"1.1.2.0/16", "1.1.2.1/16"}
-	l.Vars[vkLinkName] = "the_same"
-
-	_ = prepareLinkVars(l, a, b)
-	assert(t, a, Dict{
-		vkFarEnd:   Dict{vkLinkIP: "1.1.2.1/16", vkLinkName: "the_same", vkNodeName: "b"},
-		vkLinkIP:   "1.1.2.0/16",
-		vkLinkName: "the_same",
-	})
-	assert(t, b, Dict{
-		vkFarEnd:   Dict{vkLinkIP: "1.1.2.0/16", vkLinkName: "the_same", vkNodeName: "a"},
-		vkLinkIP:   "1.1.2.1/16",
-		vkLinkName: "the_same",
-	})
-}
-
 func TestIPfarEndS(t *testing.T) {
 	ipA := "10.0.3.0/31"
 	feA, err := ipFarEndS(ipA)

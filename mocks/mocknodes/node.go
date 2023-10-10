@@ -393,6 +393,20 @@ func (mr *MockNodeMockRecorder) SetState(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetState", reflect.TypeOf((*MockNode)(nil).SetState), arg0)
 }
 
+// TranslateInterfaceName mocks base method.
+func (m *MockNode) TranslateInterfaceName(ifName string) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TranslateInterfaceName", ifName)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// TranslateInterfaceName indicates an expected call of TranslateInterfaceName.
+func (mr *MockNodeMockRecorder) TranslateInterfaceName(ifName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TranslateInterfaceName", reflect.TypeOf((*MockNode)(nil).TranslateInterfaceName), ifName)
+}
+
 // UpdateConfigWithRuntimeInfo mocks base method.
 func (m *MockNode) UpdateConfigWithRuntimeInfo(arg0 context.Context) error {
 	m.ctrl.T.Helper()

@@ -37,6 +37,11 @@ func (l *LinkCommonParams) GetMTU() int {
 	return l.MTU
 }
 
+// GetVars returns the Vars defined for the link.
+func (l *LinkCommonParams) GetVars() map[string]interface{} {
+	return l.Vars
+}
+
 // LinkDefinition represents a link definition in the topology file.
 type LinkDefinition struct {
 	Type string  `yaml:"type,omitempty"`
@@ -305,6 +310,8 @@ type Link interface {
 	GetEndpoints() []Endpoint
 	// GetMTU returns the Link MTU.
 	GetMTU() int
+	// GetVars returns the variables defined in the topology file on the link
+	GetVars() map[string]interface{}
 }
 
 func extractHostNodeInterfaceData(lb *LinkBriefRaw, specialEPIndex int) (host, hostIf, node, nodeIf string) {
@@ -352,6 +359,9 @@ type Node interface {
 	ExecFunction(func(ns.NetNS) error) error
 	GetState() state.NodeState
 	Delete(ctx context.Context) error
+	// TranslateInterfaceName provides a means to transform the topology file provided
+	// interface names into NOS specific interface names
+	TranslateInterfaceName(ifName string) string
 }
 
 type LinkEndpointType string

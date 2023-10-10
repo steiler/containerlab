@@ -147,6 +147,11 @@ func (s *vrSROS) CheckInterfaceName() error {
 	return nil
 }
 
+func (s *vrSROS) TranslateInterfaceName(ifName string) string {
+	number, _ := strings.CutPrefix(ifName, "eth")
+	return fmt.Sprintf("1/1/%s", number)
+}
+
 func createVrSROSFiles(node nodes.Node) error {
 	nodeCfg := node.Config()
 

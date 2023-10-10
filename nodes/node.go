@@ -107,6 +107,9 @@ type Node interface {
 	ExecFunction(func(ns.NetNS) error) error
 	GetState() state.NodeState
 	SetState(state.NodeState)
+	// TranslateInterfaceName provides a means to transform the topology file provided
+	// interface names into NOS specific interface names
+	TranslateInterfaceName(ifName string) string
 }
 
 type NodeOption func(Node)

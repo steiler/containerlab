@@ -30,6 +30,11 @@ var configTemplateCmd = &cobra.Command{
 			return err
 		}
 
+		err = c.ResolveLinks()
+		if err != nil {
+			return err
+		}
+
 		err = validateFilter(c.Nodes)
 		if err != nil {
 			return err
