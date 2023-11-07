@@ -3,34 +3,23 @@ package vr_sros
 import (
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/exp/slices"
 )
 
-// filterSSHPubKeys provides extracted key values based on key-algo for usage in vrSROS configuration
-func (s *vrSROS) filterSSHPubKeys(sshKeyAlgo []string) []string {
-
-	keyValues := []string{}
-
+// mapSSHPubKeys provides extracted key values based on key-algo for usage in vrSROS configuration
+func (s *vrSROS) mapSSHPubKeys(sshKeyMapping map[string]*[]string) {
+	// iterate through keys
 	for _, k := range s.sshPubKeys {
-		if slices.Contains(sshKeyAlgo, k.Type()) {
-
-			keyType := k.Type()
-			keyString := string(ssh.MarshalAuthorizedKey(k))
-
-			// Remove the key type prefix
-			keyString = strings.TrimPrefix(keyString, keyType+" ")
-
-			// Remove the suffix (usually a comment or username)
-			parts := strings.Fields(keyString)
-			if len(parts) > 1 {
-				keyString = parts[0]
-			}
-
-			keyValues = append(keyValues, keyString)
-
+		// find mapped slice for key type
+		list, mappingFound := sshKeyMapping[k.Type()]
+		if !mappingFound {
+			log.Debugf("no mapping for key type %q found, ignoring key", k.Type())
 		}
-	}
+		// extract the fields
+		// <keytype> <key> <comment>
+		keyFields := strings.Fields(string(ssh.MarshalAuthorizedKey(k)))
 
-	return keyValues
+		*list = append((*list), keyFields[1])
+	}
 }

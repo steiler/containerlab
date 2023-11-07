@@ -140,17 +140,21 @@ func (s *vrSROS) PostDeploy(ctx context.Context, _ *nodes.PostDeployParams) erro
 	}
 
 	// tplData holds data used in templating of the default config snippet
-	tplData := vrSROSTemplateData{}
-
-	// creating a list of ECDSA Key Types
-	rsaKeyTypes := []string{"ssh-rsa"}
-	ecdsaKeyTypes := []string{"ssh-ed25519", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521"}
-
-	// checking on existence of SSH Public Keys and populating tplData
-	if len(s.sshPubKeys) > 0 {
-		tplData.SSHPubKeysRSA = s.filterSSHPubKeys(rsaKeyTypes)
-		tplData.SSHPubKeysECDSA = s.filterSSHPubKeys(ecdsaKeyTypes)
+	tplData := vrSROSTemplateData{
+		SSHPubKeysRSA:   []string{},
+		SSHPubKeysECDSA: []string{},
 	}
+
+	// create a mapping struct for the ssh keys
+	keys := map[string]*[]string{}
+	keys[ssh.KeyAlgoRSA] = &tplData.SSHPubKeysRSA
+	keys[ssh.KeyAlgoED25519] = &tplData.SSHPubKeysECDSA
+	keys[ssh.KeyAlgoECDSA256] = &tplData.SSHPubKeysECDSA
+	keys[ssh.KeyAlgoECDSA384] = &tplData.SSHPubKeysECDSA
+	keys[ssh.KeyAlgoECDSA521] = &tplData.SSHPubKeysECDSA
+
+	// Use the created mapping to map keys to the respective slices
+	s.mapSSHPubKeys(keys)
 
 	t, err := template.New("DefCfg").Funcs(gomplate.CreateFuncs(context.Background(), new(data.Data))).Parse(vrSrosConfigCmdsTpl)
 	if err != nil {
@@ -163,7 +167,7 @@ func (s *vrSROS) PostDeploy(ctx context.Context, _ *nodes.PostDeployParams) erro
 		return err
 	}
 
-	err = s.applyDefaultConfig(ctx, s.Cfg.MgmtIPv4Address, scrapliPlatformName,
+	err = s.applyConfig(ctx, s.Cfg.MgmtIPv4Address, scrapliPlatformName,
 		defaultCredentials.GetUsername(), defaultCredentials.GetPassword(),
 		buf.String(),
 	)
@@ -239,14 +243,31 @@ func (s *vrSROS) isHealthy(ctx context.Context) bool {
 		return false
 	}
 
-	log.Debugf("Node %q health status: %v", s.Cfg.ShortName, res.ReturnCode == 0)
+	log.Debugf("Node %q healthy: %v", s.Cfg.ShortName, res.ReturnCode == 0)
 
 	return res.ReturnCode == 0
 }
 
-func (s *vrSROS) Ready(ctx context.Context, addr, platformName, username, password string) error {
+// applyPartialConfig applies partial configuration to the SR OS.
+func (s *vrSROS) applyPartialConfig(ctx context.Context, addr, platformName, username, password string, configFile string) error {
+	configContent, err := utils.ReadFileContent(configFile)
+	if err != nil {
+		return err
+	}
 
+	return s.applyConfig(ctx, addr, platformName, username, password, string(configContent))
+}
+
+// applyConfig applies configuration to the SR OS.
+// This function simply pushes config available as string using scrapligo to the NE
+func (s *vrSROS) applyConfig(ctx context.Context, addr, platformName, username, password string, config string) error {
+	var err error
 	var d *network.Driver
+
+	// check file contains content, otherwise exit early
+	if len(strings.TrimSpace(config)) == 0 {
+		return nil
+	}
 
 	for loop := true; loop; {
 		if !s.isHealthy(ctx) {
@@ -295,68 +316,8 @@ func (s *vrSROS) Ready(ctx context.Context, addr, platformName, username, passwo
 			}
 		}
 	}
-	//	err := d.Close()
-	//	if err != nil {
-	//		return fmt.Errorf("%s: could not close the connection: %+v", addr, err)
-	//	}
 
-	return nil
-}
-
-// applyPartialConfig applies partial configuration to the SR OS.
-func (s *vrSROS) applyPartialConfig(ctx context.Context, addr, platformName, username, password string, configFile string) error {
-	var err error
-	var d *network.Driver
-
-	configContent, err := utils.ReadFileContent(configFile)
-	if err != nil {
-		return err
-	}
-
-	// check file contains content, otherwise exit early
-	if len(strings.TrimSpace(string(configContent))) == 0 {
-		return nil
-	}
-
-	// start waiting for initial commit and mgmt server ready
-	if err := s.Ready(ctx, s.Cfg.MgmtIPv4Address, scrapliPlatformName,
-		defaultCredentials.GetUsername(), defaultCredentials.GetPassword()); err != nil {
-		return err
-	}
-
-	// after successful readiness probe a new session is established to send config
-	li, err := scraplilogging.NewInstance(
-		scraplilogging.WithLevel("debug"),
-		scraplilogging.WithLogger(log.Debugln))
-	if err != nil {
-		return err
-	}
-
-	opts := []util.Option{
-		options.WithAuthNoStrictKey(),
-		options.WithAuthUsername(username),
-		options.WithAuthPassword(password),
-		options.WithTransportType(transport.StandardTransport),
-		options.WithTimeoutOps(5 * time.Second),
-		options.WithLogger(li),
-	}
-
-	p, err := platform.NewPlatform(platformName, addr, opts...)
-	if err != nil {
-		return fmt.Errorf("%s: failed to create platform: %+v", addr, err)
-	}
-
-	d, err = p.GetNetworkDriver()
-	if err != nil {
-		return fmt.Errorf("%s: could not create the driver: %+v", addr, err)
-	}
-
-	err = d.Open()
-	if err != nil {
-		return fmt.Errorf("%s: could not open connection: %+v", addr, err)
-	}
-
-	mr, err := d.SendConfigsFromFile(configFile)
+	mr, err := d.SendConfig(config)
 	if err != nil || mr.Failed != nil {
 		return fmt.Errorf("failed to apply config; error: %+v %+v", err, mr.Failed)
 	}
@@ -369,70 +330,6 @@ func (s *vrSROS) applyPartialConfig(ctx context.Context, addr, platformName, use
 	r, err = d.SendCommand("/admin save")
 	if err != nil || r.Failed != nil {
 		return fmt.Errorf("failed to persist config; error: %+v %+v", err, mr.Failed)
-	}
-
-	return nil
-}
-
-// Apply Default Config applies default configuration to the SR OS.
-// This function simply pushes config available as string using scrapligo to the NE
-func (s *vrSROS) applyDefaultConfig(ctx context.Context, addr, platformName, username, password string, config string) error {
-	var err error
-	var d *network.Driver
-
-	// start waiting for initial commit and mgmt server ready
-	if err := s.Ready(ctx, s.Cfg.MgmtIPv4Address, scrapliPlatformName,
-		defaultCredentials.GetUsername(), defaultCredentials.GetPassword()); err != nil {
-		return err
-	}
-
-	// after successful readiness probe a new session is established to send config
-	li, err := scraplilogging.NewInstance(
-		scraplilogging.WithLevel("debug"),
-		scraplilogging.WithLogger(log.Debugln))
-	if err != nil {
-		return err
-	}
-
-	opts := []util.Option{
-		options.WithAuthNoStrictKey(),
-		options.WithAuthUsername(username),
-		options.WithAuthPassword(password),
-		options.WithTransportType(transport.StandardTransport),
-		options.WithTimeoutOps(5 * time.Second),
-		options.WithLogger(li),
-	}
-
-	p, err := platform.NewPlatform(platformName, addr, opts...)
-	if err != nil {
-		return fmt.Errorf("%s: failed to create platform: %+v", addr, err)
-	}
-
-	d, err = p.GetNetworkDriver()
-	if err != nil {
-		return fmt.Errorf("%s: could not create the driver: %+v", addr, err)
-	}
-
-	err = d.Open()
-	if err != nil {
-		return fmt.Errorf("%s: could not open connection: %+v", addr, err)
-	}
-
-	// send rendered template default config
-	r, err := d.SendConfig(config)
-	if err != nil || r.Failed != nil {
-		return fmt.Errorf("failed to send config; error: %+v %+v", err, r.Failed)
-	}
-
-	// config snippets should not have commit command, so we need to commit manually
-	r, err = d.SendConfig("commit")
-	if err != nil || r.Failed != nil {
-		return fmt.Errorf("failed to commit config; error: %+v %+v", err, r.Failed)
-	}
-
-	r, err = d.SendCommand("/admin save")
-	if err != nil || r.Failed != nil {
-		return fmt.Errorf("failed to persist config; error: %+v %+v", err, r.Failed)
 	}
 
 	return nil
