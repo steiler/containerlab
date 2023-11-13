@@ -267,3 +267,49 @@ func TestIsGitHubShortURL(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractGitURLFromShort(t *testing.T) {
+	type args struct {
+		user string
+		repo string
+		id   string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "Test One",
+			args: args{
+				user: "srl-labs",
+				repo: "srl-telemetry-lab",
+				id:   "28",
+			},
+			want:    "https://github.com/dBitech/srl-labs.srl-telemetry-lab/tree/23.7.2_and_friends",
+			wantErr: false,
+		},
+		{
+			name: "Test Two",
+			args: args{
+				user: "srl-labs",
+				repo: "srl-telemetry-lab",
+				id:   "21",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ExtractGitURLFromShort(tt.args.user, tt.args.repo, tt.args.id)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ExtractGitURLFromShort() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ExtractGitURLFromShort() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -1,8 +1,11 @@
 package git
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 
+	"net/http"
 	neturl "net/url"
 	"strings"
 )
@@ -99,6 +102,7 @@ type GitHubRepo struct {
 // such as srl-labs/containerlab.
 func IsGitHubShortURL(s string) bool {
 	split := strings.Split(s, "/")
+
 	// only 2 elements are allowed
 	if len(split) != 2 {
 		return false
@@ -110,4 +114,70 @@ func IsGitHubShortURL(s string) bool {
 	}
 
 	return true
+}
+
+func ExtractGitURLFromShort(user, repo, id string) (string, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/pulls/%s", user, repo, id)
+
+	response, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+
+	defer response.Body.Close()
+
+	switch response.StatusCode {
+	case 200:
+		// all good, simply continue
+	case 404:
+		return "", fmt.Errorf("unable to retrieve pull request \"%s/%s#%s\". (%s) with status code %d This is probably not referencing a pull request", user, repo, id, url, response.StatusCode)
+	default:
+		return "", fmt.Errorf("unable to retrieve pull request \"%s/%s#%s\" (%s) with status code %d", user, repo, id, url, response.StatusCode)
+	}
+
+	// Read the response body
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return "", err
+	}
+
+	// unmarshall response into the partial json struct
+	var pullUrl partialGithubApiPullResponse
+	err = json.Unmarshal(body, &pullUrl)
+	if err != nil {
+		return "", err
+	}
+	// check if the retrieved data was valid, if all the
+	// expected fields are set.
+	if err = pullUrl.Valid(); err != nil {
+		return "", err
+	}
+	// return the URL of the pull request referenced branch
+	return pullUrl.GetUrl(), nil
+}
+
+// partialGithubApiPullResponse partial struct for github pulls api
+type partialGithubApiPullResponse struct {
+	Head struct {
+		Ref  string `json:"ref"`
+		Repo struct {
+			Name  string `json:"name"`
+			Owner struct {
+				Login string `json:"login"`
+			}
+		} `json:"repo"`
+	} `json:"head"`
+}
+
+// GetUrl composes the GitUrl from the partialGithubApiPullResponse
+func (p *partialGithubApiPullResponse) GetUrl() string {
+	return fmt.Sprintf("https://github.com/%s/%s/tree/%s", p.Head.Repo.Owner.Login, p.Head.Repo.Name, p.Head.Ref)
+}
+
+// Valid
+func (p *partialGithubApiPullResponse) Valid() error {
+	if p.Head.Ref == "" || p.Head.Repo.Name == "" || p.Head.Repo.Owner.Login == "" {
+		return fmt.Errorf("unable to determine branch")
+	}
+	return nil
 }

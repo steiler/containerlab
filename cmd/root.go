@@ -150,10 +150,23 @@ func getTopoFilePath(cmd *cobra.Command) error {
 }
 
 func processGitTopoFile(topo string) (string, error) {
+	var err error
 	// for short github urls, prepend https://github.com
 	// note that short notation only works for github links
 	if git.IsGitHubShortURL(topo) {
-		topo = "https://github.com/" + topo
+
+		fields := strings.Split(topo, "/")
+		morefields := strings.Split(fields[1], "#")
+		if len(morefields) == 2 {
+			// this is a pr or issue or whatever request.
+			topo, err = git.ExtractGitURLFromShort(fields[0], morefields[0], morefields[1])
+			if err != nil {
+				return "", err
+			}
+
+		} else {
+			topo = "https://github.com/" + topo
+		}
 	}
 
 	repo, err := git.NewRepo(topo)
